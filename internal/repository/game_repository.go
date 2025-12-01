@@ -10,11 +10,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-//хранилище данных
-// type gameRepository struct {
-// 	games map[int]*models.CurrentGame
-// 	mu sync.RWMutex
-// }
 
 type gameRepositoryDB struct {
 	pool *pgxpool.Pool

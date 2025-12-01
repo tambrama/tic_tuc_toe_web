@@ -4,7 +4,7 @@ import (
 	"errors"
 	"slices"
 	"tic-tac-toe/internal/domain/models"
-	"tic-tac-toe/internal/datasource/repository"
+	"tic-tac-toe/internal/repository"
 )
 
 type GameStatus int

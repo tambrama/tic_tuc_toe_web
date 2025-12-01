@@ -3,10 +3,10 @@ package mappers
 import (
 	"tic-tac-toe/internal/domain/models"
 	"tic-tac-toe/internal/domain/services"
-	"tic-tac-toe/internal/web/dto"
+	"tic-tac-toe/internal/http/dto"
 )
 // Web -> Domain
-func FromWeb(dbModel *dto.GameResponse) *models.CurrentGame {
+func CurrentGameFromWebToDomain(dbModel *dto.GameResponse) *models.CurrentGame {
 	if dbModel == nil {
 		return nil
 	}
@@ -17,7 +17,7 @@ func FromWeb(dbModel *dto.GameResponse) *models.CurrentGame {
 	}
 }
 // Domain -> Web
-func FromDomain(model *models.CurrentGame, status services.GameStatus) *dto.GameResponse {
+func CurrentGameFromDomainToWeb(model *models.CurrentGame, status services.GameStatus) *dto.GameResponse {
 	if model == nil {
 		return nil
 	}

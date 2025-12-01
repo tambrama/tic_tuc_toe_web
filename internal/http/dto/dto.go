@@ -12,3 +12,9 @@ type GameResponse struct {
 	Status  string             `json:"status"`
 	Message string             `json:"message,omitempty"`
 }
+
+type UserResponse struct {
+	UUID     uuid.UUID `db:"uuid"`
+	Login    string    `db:"login"`
+	Password string    `db:"password"`
+}

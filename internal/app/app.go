@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 	"log"
-	database "tic-tac-toe/internal/database/migrations"
+	"tic-tac-toe/internal/database"
 	"tic-tac-toe/internal/server"
 
 	"github.com/jackc/pgx/v5/pgxpool"

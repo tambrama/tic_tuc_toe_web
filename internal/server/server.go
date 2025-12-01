@@ -4,23 +4,23 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"tic-tac-toe/api"
+	"tic-tac-toe/internal/http/handler"
 	"tic-tac-toe/internal/config"
-	"tic-tac-toe/internal/web/middleware"
+	"tic-tac-toe/internal/http/middleware"
 )
 
 type Server struct {
 	config  *config.Config
-	gameAPI *api.GameAPI
+	gameAPI *handler.GameAPI
 }
 
-func NewServer(conf *config.Config, api *api.GameAPI) *Server {
+func NewServer(conf *config.Config, api *handler.GameAPI) *Server {
 	return &Server{
 		config:  conf,
 		gameAPI: api,
 	}
 }
-
+	
 func (s *Server) Start() error {
 	gameMoveHandler := middleware.Chain(
 		s.gameAPI.HandlerMakeMove,

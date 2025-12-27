@@ -6,7 +6,7 @@ import (
 
 type GameServices interface {
 	GetNextStep(g *models.CurrentGame) (*models.CurrentGame, error) //минмакс
-	CheckEndGame(g *models.CurrentGame) GameStatus
+	CheckEndGame(g *models.CurrentGame) models.GameStatus
 	ValidationField(myField, botField *models.CurrentGame) error
 }
 

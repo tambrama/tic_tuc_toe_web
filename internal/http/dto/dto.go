@@ -1,20 +1,32 @@
 package dto
 
-import "github.com/google/uuid"
+import (
+	"tic-tac-toe/internal/domain/models"
+
+	"github.com/google/uuid"
+)
 
 type GameFieldResponse struct {
 	Field [][]int `json:"field"`
 }
 
 type GameResponse struct {
-	UUID    uuid.UUID          `json:"uuid"`
-	Field   *GameFieldResponse `json:"field"`
-	Status  string             `json:"status"`
-	Message string             `json:"message,omitempty"`
+	UUID        uuid.UUID                 `json:"uuid"`
+	Field       *GameFieldResponse        `json:"field"`
+	StatusGame  models.GameStatus         `json:"status"`
+	PlayerX     uuid.UUID                 `json:"player_x"`
+	PlayerO     *uuid.UUID                `json:"player_o"`
+	CurrentTurn uuid.UUID                 `json:"current_turn"`
+	Symbols     map[uuid.UUID]models.Char `json:"symbols"`
+	Status      string                    `json:"status_game"`
+	Message     string                    `json:"message,omitempty"`
 }
 
 type UserResponse struct {
-	UUID     uuid.UUID `db:"uuid"`
-	Login    string    `db:"login"`
-	Password string    `db:"password"`
+	UUID  uuid.UUID `json:"uuid"`
+	Login string    `json:"login"`
+}
+
+type NewGameRequest struct{
+	WithBot bool `json:"with_bot"`
 }

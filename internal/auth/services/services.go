@@ -8,6 +8,6 @@ import (
 )
 
 type UserService interface {
-	Registration(ctx context.Context, account *models.SignUpRequest) error
+	Registration(ctx context.Context, account *models.SignUpRequest) (user *models.User, err error)
 	Authenticate(ctx context.Context, login string, password string) (uuid uuid.UUID, err error)
 }

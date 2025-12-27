@@ -7,23 +7,14 @@ import (
 	"tic-tac-toe/internal/repository"
 )
 
-type GameStatus int
-
 const (
 	SIZE_FIELD = 3
 )
 
 const (
-	InProgress GameStatus = iota
-	UserWin
-	BotWin
-	Draw
-)
-
-const (
 	Empty = iota
-	User
-	Bot
+	X
+	O
 )
 
 type gameService struct {
@@ -40,7 +31,7 @@ func NewGameService(repo repository.GameRepository) GameServices {
 func (service *gameService) GetNextStep(game *models.CurrentGame) (*models.CurrentGame, error) {
 	status := service.CheckEndGame(game)
 
-	if status != InProgress {
+	if status != models.Playing {
 		return nil, errors.New("Progress end")
 	}
 
@@ -54,7 +45,7 @@ func (service *gameService) GetNextStep(game *models.CurrentGame) (*models.Curre
 	}
 
 	copyField := service.CopyField(game.Field)
-	copyField.Field[bestX][bestY] = Bot
+	copyField.Field[bestX][bestY] = O
 
 	return &models.CurrentGame{
 		UUID:  game.UUID,
@@ -86,7 +77,7 @@ func (service *gameService) bestStep(m *models.CurrentGame) (x, y int) {
 		for j := range field.Field[i] {
 			if field.Field[i][j] == Empty {
 
-				field.Field[i][j] = Bot
+				field.Field[i][j] = O
 
 				score := service.minimax(m.Field, 0, true)
 
@@ -104,51 +95,51 @@ func (service *gameService) bestStep(m *models.CurrentGame) (x, y int) {
 	return x, y
 }
 
-func (service *gameService) CheckEndGame(f *models.CurrentGame) GameStatus {
+func (service *gameService) CheckEndGame(f *models.CurrentGame) models.GameStatus {
 	field := f.Field.Field
 	for i := 0; i < SIZE_FIELD; i++ {
 		if field[i][0] != 0 && field[i][0] == field[i][1] && field[i][1] == field[i][2] {
-			if field[i][0] == User {
-				return UserWin
-			} else if field[i][0] == Bot {
-				return BotWin
+			if field[i][0] == X {
+				return models.WonX
+			} else if field[i][0] == O {
+				return models.WonO
 			}
 		}
 	}
 	for j := 0; j < SIZE_FIELD; j++ {
 		if field[0][j] != 0 && field[0][j] == field[1][j] && field[1][j] == field[2][j] {
-			if field[0][j] == User {
-				return UserWin
-			} else if field[0][j] == Bot {
-				return BotWin
+			if field[0][j] == X {
+				return models.WonX
+			} else if field[0][j] == O {
+				return models.WonO
 			}
 		}
 	}
 	if field[0][0] != 0 && field[0][0] == field[1][1] && field[1][1] == field[2][2] {
-		if field[0][0] == User {
-			return UserWin
-		} else if field[0][0] == Bot {
-			return BotWin
+		if field[0][0] == X {
+			return models.WonX
+		} else if field[0][0] == O {
+			return models.WonO
 		}
 	}
 
 	if field[0][2] != 0 && field[0][2] == field[1][1] && field[1][1] == field[2][0] {
-		if field[0][2] == User {
-			return UserWin
-		} else if field[0][2] == Bot {
-			return BotWin
+		if field[0][2] == X {
+			return models.WonX
+		} else if field[0][2] == O {
+			return models.WonO
 		}
 	}
 
 	for i := 0; i < SIZE_FIELD; i++ {
 		for j := 0; j < SIZE_FIELD; j++ {
 			if field[i][j] == Empty {
-				return InProgress
+				return models.Playing
 			}
 		}
 	}
 
-	return Draw
+	return models.Draw
 }
 
 func (service *gameService) minimax(field *models.GameField, depth int, isMax bool) int {
@@ -166,7 +157,7 @@ func (service *gameService) minimax(field *models.GameField, depth int, isMax bo
 		for i := range field.Field {
 			for j := range field.Field[i] {
 				if service.EmptyField(i, j, field) {
-					field.Field[i][j] = User
+					field.Field[i][j] = X
 					best := service.minimax(field, depth+1, !isMax)
 					field.Field[i][j] = Empty
 
@@ -182,7 +173,7 @@ func (service *gameService) minimax(field *models.GameField, depth int, isMax bo
 		for i := range field.Field {
 			for j := range field.Field[i] {
 				if service.EmptyField(i, j, field) {
-					field.Field[i][j] = Bot
+					field.Field[i][j] = O
 					best := service.minimax(field, depth+1, !isMax)
 					field.Field[i][j] = Empty
 
@@ -196,11 +187,11 @@ func (service *gameService) minimax(field *models.GameField, depth int, isMax bo
 	}
 }
 
-func (service *gameService) score(status GameStatus) int {
+func (service *gameService) score(status models.GameStatus) int {
 	switch status {
-	case UserWin:
+	case models.WonX:
 		return -10
-	case BotWin:
+	case models.WonO:
 		return 10
 	default:
 		return 0

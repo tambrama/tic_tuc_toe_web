@@ -2,7 +2,9 @@ package auth
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"strings"
 	"tic-tac-toe/internal/auth/models"
 	"tic-tac-toe/internal/auth/repository"
 
@@ -17,30 +19,36 @@ type authServices struct {
 }
 
 func NewAuthServices(userRepository repository.UserRepository) UserService {
-	return &authServices{userRepository: userRepository}
+	return &authServices{
+		userRepository: userRepository,
+		validator:      validator.New(),
+	}
 }
 
-func (a *authServices) Registration(ctx context.Context, account *models.SignUpRequest) error {
+func (a *authServices) Registration(ctx context.Context, account *models.SignUpRequest) (user *models.User, err error) {
 	if err := a.validator.Struct(account); err != nil {
-		return fmt.Errorf("Ошибка валидации: %w", err)
+		return nil, fmt.Errorf("Ошибка валидации: %w", err)
 	}
 	existUser, _ := a.userRepository.GetUserByLogin(ctx, account.Login)
+	// if err != nil {
+	// 	 return nil, fmt.Errorf("Ошибка при проверке существования пользователя: %w", err)
+	// }
 	if existUser != nil {
-		return fmt.Errorf("Пользователь с таким логином существует: %w", existUser.Login)
+		return nil, fmt.Errorf("Пользователь с таким логином существует: %w", existUser.Login)
 	}
 	userUUID := uuid.New()
 
 	hashPassword, err := bcrypt.GenerateFromPassword([]byte(account.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return fmt.Errorf("Ошибка хэширования пароля: %w", err)
+		return nil, fmt.Errorf("Ошибка хэширования пароля: %w", err)
 	}
 
-	user := &models.User{
+	user = &models.User{
 		UUID:     userUUID,
 		Login:    account.Login,
 		Password: string(hashPassword),
 	}
-	return a.userRepository.CreateUser(ctx, user)
+	return user, a.userRepository.CreateUser(ctx, user)
 }
 
 func (a *authServices) Authenticate(ctx context.Context, login string, password string) (id uuid.UUID, err error) {
@@ -55,4 +63,27 @@ func (a *authServices) Authenticate(ctx context.Context, login string, password 
 	}
 
 	return existUser.UUID, nil
+}
+
+func ParseCredintials(authHeader string) (login, password string, err error) {
+	if authHeader == "" {
+		return "", "", fmt.Errorf("empty auth header")
+	}
+	
+	// Удаляем префикс "Basic " если он есть
+	authHeader = strings.TrimSpace(authHeader)
+	if strings.HasPrefix(authHeader, "Basic ") {
+		authHeader = strings.TrimPrefix(authHeader, "Basic ")
+		authHeader = strings.TrimSpace(authHeader)
+	}
+	
+	creds, err := base64.StdEncoding.DecodeString(authHeader)
+	if err != nil {
+		return "", "", fmt.Errorf("invalid base64: %w", err)
+	}
+	parts := strings.SplitN(string(creds), ":", 2)
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("invalid format")
+	}
+	return parts[0], parts[1], nil
 }

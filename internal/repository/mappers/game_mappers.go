@@ -11,8 +11,13 @@ func CurrentGameFromDBToDomain(dbModel *dto.CurrentGameDTO) *models.CurrentGame 
 	}
 
 	return &models.CurrentGame{
-		UUID:  dbModel.UUID,
-		Field: &models.GameField{Field: dbModel.Field.Field},
+		UUID:        dbModel.UUID,
+		Field:       &models.GameField{Field: dbModel.Field.Field},
+		Status:      dbModel.Status,
+		PlayerX:     dbModel.PlayerX,
+		PlayerO:     dbModel.PlayerO,
+		CurrentTurn: dbModel.CurrentTurn,
+		Symbols:     dbModel.Symbols,
 	}
 }
 
@@ -22,7 +27,12 @@ func CurrentGameFromDomainToDB(model *models.CurrentGame) *dto.CurrentGameDTO {
 	}
 
 	return &dto.CurrentGameDTO{
-		UUID:  model.UUID,
-		Field: &dto.GameFieldDTO{Field: model.Field.Field},
+		UUID:        model.UUID,
+		Field:       &dto.GameFieldDTO{Field: model.Field.Field},
+		Status:      model.Status,
+		PlayerX:     model.PlayerX,
+		PlayerO:     model.PlayerO,
+		CurrentTurn: model.CurrentTurn,
+		Symbols:     model.Symbols,
 	}
 }

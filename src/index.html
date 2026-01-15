@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Крестики-нолики</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #fff0f5;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #ff69b4;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            font-size: 2.5em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #ffeef2;
+            border: 2px solid #ffb6c1;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .cell:hover {
+            background: #ffdde5;
+        }
+
+        .cell.x {
+            color: #ff1493;
+        }
+
+        .cell.o {
+            color: #4682b4;
+        }
+
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .controls button {
+            margin: 5px;
+            padding: 10px 15px;
+            font-size: 1em;
+            border: none;
+            border-radius: 8px;
+            background: #ffb6c1;
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .controls button:hover {
+            background: #ff69b4;
+        }
+
+        .controls button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .game-info {
+            text-align: center;
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f8f8;
+            border-radius: 10px;
+        }
+
+        .status,
+        .game-id {
+            font-weight: bold;
+            margin: 5px 0;
+        }
+
+        .message {
+            color: #ff69b4;
+            font-style: italic;
+        }
+
+        .instructions {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f8ff;
+            border-radius: 10px;
+        }
+
+        .auth-form {
+            margin: 20px 0;
+        }
+
+        .auth-form input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 2px solid #ffb6c1;
+            border-radius: 10px;
+            font-size: 1em;
+            box-sizing: border-box;
+        }
+
+        .auth-form button {
+            width: 48%;
+            margin: 5px 1%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: #ffb6c1;
+            color: white;
+            font-size: 1em;
+            cursor: pointer;
+        }
+
+        .auth-form button:hover {
+            background: #ff69b4;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Экран авторизации -->
+    <div class="container" id="authScreen">
+        <h1>🌸 Вход / Регистрация</h1>
+        <div class="auth-form">
+            <input type="text" id="login" placeholder="Логин (мин. 3 символа)" />
+            <input type="password" id="password" placeholder="Пароль (мин. 6 символов)" />
+            <button onclick="register()">Зарегистрироваться</button>
+            <button onclick="login()">Войти</button>
+        </div>
+        <div class="instructions" style="margin-top: 20px;">
+            <h3>💡 Совет:</h3>
+            <p>Используйте логин и пароль, чтобы играть от своего имени!</p>
+        </div>
+    </div>
+
+    <!-- Экран игры (изначально скрыт) -->
+    <div class="container" id="gameScreen" style="display:none;">
+        <h1>🌸 Крестики-нолики 🌸</h1>
+
+        <div class="game-info">
+            <div class="status" id="status">Статус: Выберите режим</div>
+            <div class="message" id="message">Удачи! 💖</div>
+            <div class="game-id">ID игры: <span id="gameId">-</span></div>
+            <div class="game-id">Вы: <span id="userLogin">-</span></div>
+        </div>
+
+        <div class="board" id="board">
+            <!-- Клетки создаются через JS -->
+        </div>
+
+        <div class="controls" id="controls">
+            <!-- Кнопки будут созданы через JS -->
+        </div>
+
+        <div class="instructions">
+            <h3>💕 Как играть:</h3>
+            <ul>
+                <li>Вы играете крестиками (X)</li>
+                <li>Бот или соперник — ноликами (O)</li>
+                <li>Нажмите на пустую клетку, чтобы сделать ход</li>
+                <li>Побеждает тот, кто соберёт линию из 3 своих символов</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8081';
+        let currentGameId = null;
+        let currentGameMode = null;
+        let currentPlayerSymbol = null;
+        let pollInterval = null;
+        let currentUserLogin = null;
+        let currentUserPassword = null;
+        let currentUserUUID = null;
+
+        let accessToken = null;
+
+
+        function getAuthHeader() {
+            if (!currentUserLogin || !currentUserPassword) return {};
+            const credentials = btoa(`${currentUserLogin}:${currentUserPassword}`);
+            return { 'Authorization': `Basic ${credentials}` };
+        }
+
+        async function register() {
+            const login = document.getElementById('login').value.trim();
+            const password = document.getElementById('password').value;
+            if (login.length < 3 || password.length < 6) {
+                alert('Логин мин. 3 символа, пароль мин. 6 символов');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/registration`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ login, password })
+                });
+
+                if (res.ok) {
+                    alert('Регистрация успешна! Теперь войдите.');
+                    document.getElementById('password').value = '';
+                } else {
+                    const err = await res.text();
+                    alert('Ошибка регистрации: ' + (err || 'неверный запрос'));
+                }
+            } catch (e) {
+                alert('Ошибка сети: ' + e.message);
+            }
+        }
+
+        async function login() {
+            const login = document.getElementById('login').value.trim();
+            const password = document.getElementById('password').value;
+            if (!login || !password) {
+                alert('Заполните все поля');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/auth`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ login, password })
+                });
+
+                const authData = await res.json();
+
+                if (res.ok) {
+
+                    currentUserLogin = login;
+                    currentUserUUID = authData.uuid;
+                    accessToken = authData.access_token
+                    document.getElementById('authScreen').style.display = 'none';
+                    document.getElementById('gameScreen').style.display = 'block';
+                    document.getElementById('userLogin').textContent = login;
+                    initializeBoard();
+                    renderModeSelector();
+                } else {
+                    alert('Неверный логин или пароль');
+                }
+            } catch (e) {
+                alert('Ошибка сети: ' + e.message);
+            }
+        }
+
+        function getAuthHeader() {
+            if (!accessToken) {
+                throw new Error('Not authenticated');
+            }
+            return { 'Authorization': `Bearer ${accessToken}` };
+        }
+
+        // === ОСНОВНЫЕ ФУНКЦИИ ИГРЫ ===
+
+        async function createGame(mode) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/game/new`, {
+                    method: 'POST',
+                    headers: getAuthHeader(),
+                    body: JSON.stringify({ withBot: true })
+                });
+                document.getElementById('gameScreen').style.display = 'block';
+                const responseText = await response.text();
+                let data;
+
+                if (!response.ok) {
+                    try {
+                        data = JSON.parse(responseText);
+                        const msg = data.message || data.error || responseText || 'Неизвестная ошибка';
+                        throw new Error(msg);
+                    } catch (e) {
+                        throw new Error(responseText || 'Неизвестная ошибка');
+                    }
+                }
+
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    throw new Error('Сервер вернул недопустимый JSON: ' + responseText);
+                }
+
+                if (!data.uuid || !data.field || !Array.isArray(data.field.field)) {
+                    console.error('Неверный формат игры:', data);
+                    throw new Error('Сервер вернул игру в неверном формате');
+                }
+
+                // При создании с ботом — вы всегда X
+                // При создании без бота — вы X, но игра в статусе waiting
+                setupGame(data, 'bot', true);
+            } catch (err) {
+                console.error('Ошибка создания игры:', err);
+                alert('Ошибка создания игры: ' + err.message);
+            }
+        }
+
+        // Создать ПУБЛИЧНУЮ игру (для людей)
+        async function createPublicGame() {
+            document.getElementById('gameScreen').style.display = 'block';
+            try {
+                const response = await fetch(`${API_BASE_URL}/game/new`, {
+                    method: 'POST',
+                    headers: getAuthHeader(),
+                    body: JSON.stringify({ with_bot: false }) // без бота → публичная
+                });
+
+                const responseText = await response.text();
+                let data;
+
+                if (!response.ok) {
+                    try {
+                        data = JSON.parse(responseText);
+                        const msg = data.message || data.error || responseText || 'Не удалось создать игру';
+                        throw new Error(msg);
+                    } catch (e) {
+                        throw new Error(responseText || 'Не удалось создать игру');
+                    }
+                }
+
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    throw new Error('Сервер вернул недопустимый JSON: ' + responseText);
+                }
+
+                if (!data.uuid || !data.field || !Array.isArray(data.field.field)) {
+                    throw new Error('Неверный формат игры');
+                }
+
+                if (data.status_game === 'waiting') {
+                    alert(`Игра создана! ID: ${data.uuid}. Ждём соперника...`);
+                    // После создания — вы остаётесь в списке, ждёте присоединения
+                    showAvailableGames(); // обновить список
+                } else {
+                    // Если игра сразу началась (не должно быть, но на всякий случай)
+                    setupGame(data, 'human', true);
+                }
+            } catch (err) {
+                console.error('Ошибка создания публичной игры:', err);
+                alert('Ошибка: ' + err.message);
+            }
+        }
+
+        async function showAvailableGames() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/game/list`, {
+                    headers: getAuthHeader()
+                });
+
+                if (!response.ok) {
+                    throw new Error('Не удалось загрузить игры: ' + response.status);
+                }
+
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    throw new Error('Сервер вернул недопустимый JSON');
+                }
+
+                const games = Array.isArray(data) ? data : [];
+                showGamesList(games);
+            } catch (err) {
+                console.error('Ошибка загрузки игр:', err);
+                alert('Ошибка: ' + err.message);
+            }
+        }
+
+        function showGamesList(games) {
+            const controls = document.getElementById('controls');
+            let html = '<h3>👥 Игра с человеком</h3>';
+            html += '<button onclick="createPublicGame()">➕ Создать игру</button><br><br>';
+
+            if (games.length === 0) {
+                html += '<p>Нет доступных игр. Создайте новую!</p>';
+            } else {
+                html += '<p>Доступные игры:</p>';
+                games.forEach(game => {
+                    if (game && game.uuid) {
+                        html += `<button onclick="joinGame('${String(game.uuid)}')">Присоединиться к ${String(game.uuid).slice(0, 8)}...</button><br><br>`;
+                    }
+                });
+            }
+            html += '<button onclick="renderModeSelector()">← Назад</button>';
+            controls.innerHTML = html;
+        }
+
+        async function joinGame(gameId) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/game/${gameId}/join`, {
+                    method: 'POST',
+                    headers: getAuthHeader(),
+                });
+
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    throw new Error('Сервер вернул недопустимый JSON');
+                }
+
+                if (!response.ok) {
+                    const msg = data.message || data.error || (await response.text()) || 'Не удалось присоединиться';
+                    throw new Error(msg);
+                }
+
+                if (!data.uuid || !data.field || !Array.isArray(data.field.field)) {
+                    throw new Error('Неверный формат игры');
+                }
+
+                // При присоединении — вы O
+                setupGame(data, 'human', false);
+            } catch (err) {
+                console.error('Ошибка присоединения:', err);
+                alert('Ошибка: ' + err.message);
+            }
+        }
+
+        async function makeMove(row, col) {
+            if (!currentGameId) {
+                alert('Начните игру!');
+                return;
+            }
+            const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+            if (!cell || cell.textContent !== '') return;
+
+            setLoading(true);
+            try {
+                const field = getCurrentBoardState();
+                // Определяем значение для хода: 1 для X, 2 для O
+                field[row][col] = currentPlayerSymbol === 'X' ? 1 : 2;
+
+                const response = await fetch(`${API_BASE_URL}/game/${currentGameId}`, {
+                    method: 'POST',
+                    headers: {
+                        ...getAuthHeader(),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        uuid: currentGameId,
+                        field: { field }
+                    })
+                });
+
+                // Сначала читаем текст, чтобы можно было использовать его и для JSON, и для ошибок
+                const responseText = await response.text();
+                let data;
+
+                if (!response.ok) {
+                    // Если ошибка, пытаемся распарсить как JSON для получения сообщения
+                    try {
+                        data = JSON.parse(responseText);
+                        const msg = data.message || data.error || responseText || 'Ошибка хода';
+                        throw new Error(msg);
+                    } catch (e) {
+                        // Если не JSON, используем текст ответа
+                        throw new Error(responseText || 'Ошибка хода');
+                    }
+                }
+
+                // Если успешно, парсим JSON
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    throw new Error('Сервер вернул недопустимый JSON: ' + responseText);
+                }
+
+                if (!data.field || !Array.isArray(data.field.field)) {
+                    throw new Error('Неверный формат поля после хода');
+                }
+
+                updateGameState(data);
+
+                // Если игра с человеком и игра продолжается, продолжаем опрос
+                if (currentGameMode === 'human' && data.status_game === 'in_progress') {
+                    startPolling();
+                } else if (data.status_game !== 'in_progress') {
+                    // Игра окончена, останавливаем опрос
+                    if (pollInterval) clearInterval(pollInterval);
+                }
+
+            } catch (err) {
+                console.error('Ошибка хода:', err);
+                alert('Ошибка хода: ' + err.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function startPolling() {
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = setInterval(async () => {
+                try {
+                    const res = await fetch(`${API_BASE_URL}/game/${currentGameId}/status`, {
+                        headers: getAuthHeader()
+                    });
+                    if (res.ok) {
+                        const game = await res.json();
+                        if (game.uuid === currentGameId) {
+                            updateGameState(game);
+                            if (game.status_game !== 'in_progress') {
+                                clearInterval(pollInterval);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Polling error:', e);
+                }
+            }, 2000);
+        }
+
+        function initializeBoard() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    const cell = document.createElement('button');
+                    cell.className = 'cell';
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    cell.addEventListener('click', () => makeMove(i, j));
+                    board.appendChild(cell);
+                }
+            }
+        }
+
+        function renderModeSelector() {
+            hideGameBoard();
+
+            const controls = document.getElementById('controls');
+            controls.innerHTML = `
+        <button onclick="createGame('bot')">🎮 Игра с ботом</button>
+        <button onclick="showAvailableGames()">👥 Игра с человеком</button>
+        <button onclick="fetchLeaderboard()">🏆 Таблица лидеров</button>
+        <button onclick="fetchGameHistory()">📜 История игр</button>
+        <button onclick="fetchMyProfile()">👤 Мои данные</button>
+        <button onclick="resetGame()">🔄 Сбросить</button>
+    `;
+            document.getElementById('status').textContent = 'Статус: Выберите режим';
+            document.getElementById('message').textContent = 'Удачи! 💖';
+            document.getElementById('gameId').textContent = '-';
+            currentGameId = null;
+            if (pollInterval) clearInterval(pollInterval);
+        }
+
+        //скрытие игрового поля
+        function hideGameBoard() {
+            document.getElementById('board').style.display = 'none';
+        }
+
+        function showGameBoard() {
+            document.getElementById('board').style.display = 'grid'; // или 'block', как в CSS
+        }
+
+
+        async function fetchLeaderboard() {
+            const n = prompt('Сколько лучших игроков показать?', '10');
+            if (!n || isNaN(n) || n <= 0) {
+                alert('Пожалуйста, введите корректное число.');
+                return;
+            }
+            hideGameBoard();
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/game/leaders`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...getAuthHeader()
+                    },
+                    body: JSON.stringify({ count: parseInt(n, 10) })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Ошибка ${response.status}: ${errorText}`);
+                }
+
+                const leaderboard = await response.json(); // [{ uuid: "...", login: "...", win_ratio: 0.85 }, ...]
+
+                let html = '<h3>🏆 Таблица лидеров</h3><ul>';
+                leaderboard.forEach(player => {
+                    html += `<li>${player.Login} (UUID: ${player.UserId}) — побед: ${player.WinRate}%</li>`;
+                });
+                html += '</ul><button onclick="renderModeSelector()">← Назад</button>';
+
+                document.getElementById('controls').innerHTML = html;
+                document.getElementById('status').textContent = 'Статус: Таблица лидеров загружена';
+                document.getElementById('message').textContent = '';
+                document.getElementById('gameId').textContent = '-';
+
+            } catch (err) {
+                alert('Не удалось загрузить таблицу лидеров: ' + err.message);
+                console.error(err);
+            }
+        }
+        async function fetchGameHistory() {
+             hideGameBoard();
+            try {
+                const response = await fetch(`${API_BASE_URL}/game/history`, {
+                    method: 'GET',
+                    headers: getAuthHeader()
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Ошибка ${response.status}: ${errorText}`);
+                }
+
+                const games = await response.json(); // массив завершённых игр
+
+                if (games.length === 0) {
+                    document.getElementById('controls').innerHTML = `
+                <p>Нет завершённых игр.</p>
+                <button onclick="renderModeSelector()">← Назад</button>
+            `;
+                } else {
+                    let html = '<h3>📜 История игр</h3><ul>';
+                    games.forEach(game => {
+                        let result;
+                        if (game.status_game === 'won_X' || game.status_game === 'won_O') {
+                            result = '✅ Победа';
+                        } else if (game.status_game === 'draw') {
+                            result = '➖ Ничья';
+                        } else {
+                            result = '❓ Неизвестно';
+                        }
+
+                        // Определяем оппонента
+                        const isPlayerX = game.player_x !== null;
+                        const isPlayerO = game.player_o !== null;
+                        let opponent = 'бота';
+
+                        // Если оба игрока — не бот (редко, но возможно)
+                        if (isPlayerX && isPlayerO) {
+                            // Текущий пользователь — один из них, значит, другой — человек
+                            opponent = 'игрока';
+                        }
+                        // Если только player_x — значит, ты X, против бота (player_o = null)
+                        // Если только player_o — значит, ты O, против бота (player_x — бот? но в твоих данных player_x всегда UUID)
+                        // В твоём случае: если player_o === null → против бота
+
+                        if (game.player_o === null || game.player_x === null) {
+                            opponent = 'бот';
+                        } else {
+                            opponent = 'игрок';
+                        }
+
+                        html += `<li>Игра ${game.uuid}: против ${opponent} — ${result}</li>`;
+                    });
+                    html += '</ul><button onclick="renderModeSelector()">← Назад</button>';
+                    document.getElementById('controls').innerHTML = html;
+                }
+
+                document.getElementById('status').textContent = 'Статус: История игр загружена';
+                document.getElementById('message').textContent = '';
+                document.getElementById('gameId').textContent = '-';
+
+            } catch (err) {
+                alert('Не удалось загрузить историю игр: ' + err.message);
+                console.error(err);
+            }
+        }
+
+        async function fetchMyProfile() {
+            hideGameBoard();
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/me`, {
+                    method: 'GET',
+                    headers: getAuthHeader()
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Ошибка ${response.status}: ${errorText}`);
+                }
+
+                const user = await response.json(); // { uuid: "...", login: "..." }
+
+                const html = `
+            <h3>👤 Мои данные</h3>
+            <p><strong>Логин:</strong> ${user.login}</p>
+            <p><strong>UUID:</strong> ${user.uuid}</p>
+            <button onclick="renderModeSelector()">← Назад</button>
+        `;
+
+                document.getElementById('controls').innerHTML = html;
+                document.getElementById('status').textContent = 'Статус: Профиль загружен';
+                document.getElementById('message').textContent = '';
+                document.getElementById('gameId').textContent = '-';
+
+            } catch (err) {
+                alert('Не удалось загрузить данные профиля: ' + err.message);
+                console.error(err);
+            }
+        }
+
+        function setupGame(game, mode, isPlayerX) {
+            showGameBoard();        // ← теперь это показывает #board
+            initializeBoard();
+            currentGameId = game.uuid;
+            currentGameMode = mode;
+            // Определяем символ игрока: если мы player_x, то X, если player_o - то O
+            if (currentUserUUID) {
+                if (game.player_x === currentUserUUID) {
+                    currentPlayerSymbol = 'X';
+                } else if (game.player_o && game.player_o === currentUserUUID) {
+                    currentPlayerSymbol = 'O';
+                } else {
+                    // Fallback на переданный параметр
+                    currentPlayerSymbol = isPlayerX ? 'X' : 'O';
+                }
+            } else {
+                currentPlayerSymbol = isPlayerX ? 'X' : 'O';
+            }
+            updateGameState(game);
+
+            // Показываем только кнопку "выйти"
+            const controls = document.getElementById('controls');
+            controls.innerHTML = '<button onclick="resetGame()">🚪 Выйти из игры</button>';
+
+            if (mode === 'human') {
+                startPolling();
+            }
+        }
+
+        function updateGameState(game) {
+            document.getElementById('gameId').textContent = String(game.uuid || '-');
+            let statusText = 'Игра идет 🌸';
+            if (game.status === 4) {
+                statusText = 'Ничья! 🤝';
+            } else if (game.status === 2 || game.status === 3) {
+                statusText = 'Игра окончена 🎉';
+            } else if (game.status === 0) {
+                statusText = 'Ожидание соперника...';
+            }
+            document.getElementById('status').textContent = `Статус: ${statusText}`;
+            document.getElementById('message').textContent = game.status === 1 ? (game.message || 'Ваш ход! 💖') : (game.message || '');
+
+            const field = game.field?.field;
+            if (Array.isArray(field) && field.length === 3) {
+                updateBoard(field);
+            } else {
+                console.error('Неверное поле:', game);
+            }
+        }
+
+        function updateBoard(field) {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach((cell, idx) => {
+                const r = Math.floor(idx / 3);
+                const c = idx % 3;
+                cell.textContent = '';
+                cell.className = 'cell';
+                const val = field[r]?.[c];
+                if (val === 1) {
+                    cell.textContent = 'X';
+                    cell.classList.add('x');
+                } else if (val === 2) {
+                    cell.textContent = 'O';
+                    cell.classList.add('o');
+                }
+            });
+        }
+
+        function getCurrentBoardState() {
+            const state = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    const txt = document.querySelector(`.cell[data-row="${i}"][data-col="${j}"]`)?.textContent || '';
+                    state[i][j] = txt === 'X' ? 1 : (txt === 'O' ? 2 : 0);
+                }
+            }
+            return state;
+        }
+
+        function setLoading(loading) {
+            document.querySelectorAll('button').forEach(btn => {
+                if (btn) btn.disabled = loading;
+            });
+        }
+
+        function resetGame() {
+            currentGameId = null;
+            currentGameMode = null;
+            currentPlayerSymbol = null;
+            if (pollInterval) clearInterval(pollInterval);
+
+            // document.getElementById('board').innerHTML = '';
+
+            // 2. Сбрасываем текстовые поля
+            document.getElementById('status').textContent = 'Статус: Выберите режим';
+            document.getElementById('message').textContent = 'Удачи! 💖';
+            document.getElementById('gameId').textContent = '-';
+            document.getElementById('userLogin').textContent = '-';
+
+            // 3. Показываем кнопки выбора режима
+            renderModeSelector(); // это обновит #controls
+
+        }
+
+        // Экспорт в window
+        window.register = register;
+        window.login = login;
+        window.createGame = createGame;
+        window.createPublicGame = createPublicGame;
+        window.showAvailableGames = showAvailableGames;
+        window.joinGame = joinGame;
+        window.renderModeSelector = renderModeSelector;
+        window.resetGame = resetGame;
+    </script>
+</body>
+
+</html>

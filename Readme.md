@@ -168,7 +168,13 @@ go run ./cmd/app
 Проект следует принципам **Clean Architecture** с четким разделением ответственности:
 
 ```
-src/
+/
+├── build/
+│   ├── server/
+│   │   └── Dockerfile
+│   └── migrator/
+│       └── Dockerfile
+|
 ├── cmd/
 │   └── app/
 │       └── main.go                    # Точка входа приложения
@@ -243,7 +249,9 @@ src/
 |   |
 |   └── migrations/                    # Запросы для миграции
 │
-├── go.mod                             # Зависимости Go
+├── docker-compose.yml   
+├── .env
+├── go.mod                             # Зависимости Go    
 ├── go.sum                             # Checksums зависимостей
 ├── Makefile                           # Команды сборки и запуска
 ├── index.html                         # Тестовый клиент

@@ -1,32 +1,48 @@
-version: "3.8"
-
 services:
-  app:
-    build: .
-    container_name: tic-tac-toe-app
-    env_file:
-      - .env
-    ports:
-      - "${SERVER_PORT}:${SERVER_PORT}"
-    depends_on:
-      - db
-    restart: on-failure
-    command: >
-      sh -c "
-      goose -dir ./migrations postgres \"$DATABASE_URL\" up &&
-      ./app
-      "
-
-  db:
+  postgres:
     image: postgres:16-alpine
-    container_name: tic-tac-toe-db
-    env_file:
-      - .env
-    ports:
-      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${PSQL_NAME}
+      POSTGRES_USER: ${PSQL_USER}
+      POSTGRES_PASSWORD: ${PSQL_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PSQL_USER} -d ${PSQL_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     volumes:
       - pg:/var/lib/postgresql/data
-    restart: unless-stopped
+
+  migration:
+    build:
+      context: ./
+      dockerfile: build/migrator/Dockerfile
+    env_file:
+    - .env
+    command:
+    - sh
+    - -c
+    - |
+      goose -dir migrations postgres \
+        "host=postgres port=5432 user=$$PSQL_USER password=$$PSQL_PASSWORD dbname=$$PSQL_NAME sslmode=disable" \
+        up
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  app:
+    build:
+      context: ./
+      dockerfile: build/server/Dockerfile
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"
+    env_file:
+      - .env
+    depends_on:
+      migration:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
 
 volumes:
   pg:
